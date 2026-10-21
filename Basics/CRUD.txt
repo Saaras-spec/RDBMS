@@ -1,0 +1,198 @@
+DDL vs DML in PostgreSQL (SDE Interview Notes)
+
+1. DDL (Data Definition Language)
+
+Commands that change the schema or blueprint of the database. These are used to create, modify, or delete database objects like tables, columns, etc.
+
+
+2. DML (Data Manipulation Language)
+
+Commands that modify the actual data inside the tables.
+This is your standard CRUD (Create, Read, Update, Delete).
+
+
+Part 1: DDL - Building and Modifying the House (The Schema)
+
+1. CREATE TABLE
+
+Creates a brand-new table blueprint in the database.
+
+Syntax / Example:
+
+CREATE TABLE Users (
+    id SERIAL PRIMARY KEY,       -- SERIAL is PostgreSQL's way
+                                 -- of auto-incrementing integers
+    name VARCHAR(50) NOT NULL,   -- 
+    email VARCHAR(100) UNIQUE
+);
+
+
+2. ALTER TABLE
+
+Changes the structure of an existing table (e.g., adding a column, changing a data type) without losing the data inside it.
+
+Example:
+
+ALTER TABLE Users
+ADD COLUMN created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;
+
+
+3. DROP TABLE
+
+Completely destroys the table structure AND all the data inside it.
+It ceases to exist.
+
+Example:
+
+DROP TABLE Users;
+
+
+4. TRUNCATE TABLE
+
+Empties all the data out of a table instantly, but leaves the empty structure (the blueprint) intact so you can add new data later.
+
+Example:
+
+TRUNCATE TABLE Users;
+
+
+Interview Question: What is the difference between DELETE and TRUNCATE?
+
+The SDE Answer:
+
+Aspect                  DELETE (DML)                    TRUNCATE (DDL)
+
+1. How it works          Removes rows one by one          Deallocates the data pages
+                         and logs each removal.           instantly.
+
+2. Speed                 Slower (especially for           Blazingly fast.
+                         large tables).
+
+3. WHERE clause          Supports WHERE clause             Cannot have a WHERE clause;
+                         (to delete specific rows).       wipes everything.
+
+4. Auto-increment        Does NOT reset the                Resets the auto-incrementing
+   counter               auto-incrementing ID             ID counter back to zero.
+                         counter.
+
+5. Transaction           Can be rolled back                Generally cannot be rolled
+   behavior              (within a transaction).           back (in some DBs).
+
+6. Use case              Use when you need to              Use when you need to quickly
+                         delete specific rows.             remove all data from a table.
+
+
+DDL vs DML Summary
+
+Aspect                    DDL                         DML
+
+Full Form                 Data Definition Language    Data Manipulation Language
+
+Purpose                   Changes the schema          Modifies the actual data
+                          (blueprint)
+
+Commands                  CREATE, ALTER, DROP,        INSERT, SELECT, UPDATE, DELETE
+                          TRUNCATE
+
+Affects                   Table structure, columns,   Rows (records) in tables
+                          constraints
+
+Example                   CREATE TABLE Users (...)    INSERT INTO Users (...)
+
+Transaction               Usually auto-commit          Fully transactional
+Behavior                  (some can be transactional)  (can be rolled back)
+(in PostgreSQL)
+
+Use Case                  Designing and modifying     Working with the data
+                          the database                inside tables
+
+
+Part 2: DML - The CRUD Operations (The Data)
+
+5. INSERT INTO (Create)
+
+Adds new rows (records) into the table.
+
+Example (Single Insert):
+
+INSERT INTO Users (name, email)
+VALUES ('Sanjana', 'sanjana@example.com');
+
+
+Example (Bulk Insert - Multiple rows):
+
+INSERT INTO Users (name, email)
+VALUES
+    ('Kartik', 'kartik@example.com'),
+    ('Alice', 'alice@example.com');
+
+
+SDE Pro-Tip (PostgreSQL specific):
+
+You can add RETURNING * at the end of an INSERT statement to immediately get back the newly generated data (like the auto-generated ID) without having to write a separate SELECT query.
+
+Example:
+
+INSERT INTO Users (name, email)
+VALUES ('Sanjana', 'sanjana@example.com')
+RETURNING *;  -- returns the newly inserted row
+
+
+6. SELECT (Read)
+
+Fetches data from the database.
+
+Example:
+
+SELECT name, email
+FROM Users
+WHERE id = 1;
+
+
+Interview Trap: Why is SELECT * considered bad practice in production code?
+
+The SDE Answer:
+
+- Using SELECT * pulls every single column, wasting memory and network bandwidth if we only needed the name.
+- If someone alters the table to add a massive TEXT column or a sensitive password_hash column, SELECT * will blindly pull that data into the backend, potentially causing memory crashes or security leaks.
+- Always specify the exact columns you need.
+
+
+7. UPDATE (Update)
+
+Modifies existing rows.
+
+Example:
+
+UPDATE Users
+SET email = 'new_email@example.com'
+WHERE id = 1;
+
+
+Interview Trap: Forgetting the WHERE clause.
+
+If you write:
+UPDATE Users SET email = 'hello@example.com';
+
+It will overwrite the email of every single user in the entire database.
+This is a classic junior developer mistake that can take down a company.
+
+
+8. DELETE (Delete)
+
+Removes specific rows from the table based on a condition.
+
+Example:
+
+DELETE FROM Users
+WHERE id = 1;
+
+
+System Design Question: If a user wants to delete their account, should we run a DELETE query?
+
+The SDE Answer:
+
+- In modern product companies, we rarely use hard DELETE commands for important entities because it breaks historical data (like past financial transactions linked to that user).
+- Instead, we use a Soft Delete. We add a boolean column called is_deleted and simply UPDATE Users SET is_deleted = TRUE.
+- Our SELECT queries then filter out anyone with is_deleted = TRUE.
+- This preserves the data for analytics and allows us to easily restore the account if the user changes their mind.
