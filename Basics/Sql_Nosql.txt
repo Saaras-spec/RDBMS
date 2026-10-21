@@ -1,0 +1,180 @@
+DBMS, RDBMS, Relational vs Non-Relational, SQL vs NoSQL
+
+1. What is a DBMS (Database Management System)?
+
+A DBMS is the software application used to create, manage, and interact with the database. You do not interact with the raw data files directly on the hard drive; you ask the DBMS to retrieve or write the data for you.
+
+User / Application
+        |
+        | SQL Query (ask for data)
+        v
+DBMS (Database Management System)
+        |
+        | Query Result (return data)
+        v
+Database (data files on hard drive)
+
+
+2. What is an RDBMS (Relational Database Management System)?
+
+An RDBMS is a specific, highly popular type of DBMS that stores data in tables (rows and columns). The "Relational" part means these independent tables can be logically linked (related) to each other using common fields.
+
+Users Table
+
+id    name     email
+1     John     john@example.com
+2     Alice    alice@example.com
+3     Bob      bob@example.com
+
+Orders Table
+
+id     user_id    product
+101    1          Laptop
+102    2          Phone
+103    1          Headphones
+
+Linked using common field (user_id).
+
+
+3. Relational vs. Non-Relational (SQL vs. NoSQL)
+
+"Relational vs. Non-Relational" / "SQL vs NoSQL" represent the exact same debate. Relational databases use SQL (Structured Query Language) to manage data, while Non-Relational databases use flexible, non-tabular storage models.
+
+Feature: Storage Structure
+
+Relational (SQL / PostgreSQL):
+Tables with rows and columns.
+
+Non-Relational (NoSQL / MongoDB):
+Documents (like JSON), Key-Value pairs, or Graphs.
+
+
+Feature: Schema
+
+Relational (SQL / PostgreSQL):
+Rigid: You must define all columns and their data types (String, Int) before inserting data.
+
+Non-Relational (NoSQL / MongoDB):
+Flexible: You can add entirely new, unexpected fields to a single record on the fly.
+
+
+Feature: Scaling Strategy
+
+Relational (SQL / PostgreSQL):
+Vertical (Scale-up): To handle heavy traffic, you generally need to buy a bigger, more expensive server (More RAM/CPU).
+
+Non-Relational (NoSQL / MongoDB):
+Horizontal (Scale-out): To handle heavy traffic, you can easily distribute the database across multiple cheaper servers.
+
+
+Feature: Reliability
+
+Relational (SQL / PostgreSQL):
+ACID Properties: Guarantees absolute data accuracy. If a transaction fails halfway, everything rolls back safely.
+
+Non-Relational (NoSQL / MongoDB):
+BASE Properties: Prioritizes speed and availability. Data might be momentarily out of sync across servers (Eventual Consistency).
+
+
+4. Relational vs. Non-Relational Examples
+
+Relational (SQL)
+
+id    name     email
+1     John     john@example.com
+2     Alice    alice@example.com
+
+Data stored in structured tables.
+Fixed schema (predefined columns).
+Uses SQL.
+Example: PostgreSQL, MySQL, Oracle, SQL Server.
+
+
+Non-Relational (NoSQL)
+
+{
+    "_id": "1",
+    "name": "John",
+    "email": "john@example.com",
+    "age": 25,
+    "address": {
+        "city": "Delhi"
+    }
+}
+
+Data stored in flexible format (documents, key-value, graphs, etc.).
+Dynamic schema (can add new fields).
+Uses non-tabular storage models.
+Example: MongoDB, Cassandra, Redis, DynamoDB.
+
+
+5. When to Use Which? (SDE Interview Answer Framework)
+
+"Should we use a Relational or Non-Relational database for this new feature?"
+
+I would choose an RDBMS (SQL) if...
+- the data is highly structured,
+- requires complex queries linking multiple entities,
+- and absolute data integrity is required.
+
+Example: A payment processing system or an inventory tracker where a dropped transaction is unacceptable.
+
+
+I would choose NoSQL if...
+- we need to store massive amounts of unstructured data,
+- anticipate rapid schema changes,
+- or need to scale horizontally with extreme read/write speeds.
+
+Example: Storing real-time IoT sensor data, a social media news feed, or temporary session logs.
+
+
+6. What is a Schema?
+
+A schema is the blueprint or structural design of the database.
+It does not hold the actual data; it holds the rules for the data.
+It defines what tables exist, what columns are in those tables, the data types (integer, text, date), and the relationships between tables.
+
+Example Schema (Users Table)
+
+CREATE TABLE users (
+    id INT PRIMARY KEY,
+    name VARCHAR(100),
+    email VARCHAR(100),
+    created_at TIMESTAMP
+);
+
+This defines the structure (table name, columns, data types, and constraints) but does not contain the actual data.
+
+
+7. Schema in PostgreSQL (Namespace)
+
+In PostgreSQL, specifically, the word "schema" has a second meaning. PostgreSQL uses schemas like namespaces or folders inside a database to organize tables.
+
+Example in PostgreSQL
+
+CREATE SCHEMA sales;
+CREATE SCHEMA hr;
+
+CREATE TABLE sales.orders (
+    id INT PRIMARY KEY,
+    amount DECIMAL(10,2)
+);
+
+CREATE TABLE hr.employees (
+    id INT PRIMARY KEY,
+    name VARCHAR(100)
+);
+
+Here, the sales schema holds the Orders table, and the hr schema holds the Employees table.
+
+
+8. What is a Database Instance?
+
+A database instance is the actual running software and memory on a server at a specific moment in time. When you start your PostgreSQL server on your laptop, you are spinning up an instance.
+
+What it does:
+- The instance is the engine.
+- It reads the schema (the blueprint).
+- It manages the actual data files on your hard drive.
+- It allocates RAM to make queries fast.
+- It handles connections from your backend code.
