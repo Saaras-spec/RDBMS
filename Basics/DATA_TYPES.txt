@@ -1,0 +1,190 @@
+PostgreSQL Data Types (SDE Interview Notes)
+
+1. Whole Numbers: SMALLINT, INTEGER, BIGINT
+
+These store whole numbers without decimals. The only difference between them is the maximum number they can hold and how much disk space they consume.
+
+Data Type: SMALLINT
+Size (Bytes): 2 bytes
+Approx. Range: -32,768 to 32,767
+Use Case / Notes:
+Used for small, known ranges like a Status_Code (1 to 5) or Age.
+
+Data Type: INTEGER (or INT)
+Size (Bytes): 4 bytes
+Approx. Range: -2,147,483,648 to 2,147,483,647 (~2.1 billion)
+Use Case / Notes:
+The standard choice. Used for standard IDs, quantities, or counts.
+
+Data Type: BIGINT
+Size (Bytes): 8 bytes
+Approx. Range: Very large range (~9 quintillion)
+Use Case / Notes:
+The heavy-duty choice.
+
+Interview Tip:
+Always use BIGINT for auto-incrementing Primary Keys in product companies. A fast-growing app will easily surpass 2.1 billion users, clicks, or orders, and changing an INTEGER primary key to a BIGINT later in a live production database with billions of rows is a highly stressful, system-straining task.
+
+
+2. Fractional Numbers: DECIMAL, NUMERIC, REAL
+
+These store numbers with decimals, but they handle the math differently behind the scenes.
+
+Data Type: DECIMAL (or NUMERIC)
+Description:
+Exact precision.
+In PostgreSQL, these are exactly the same thing.
+Example: 10.0001
+Use Case:
+Use this for money, financial transactions, or scientific measurements.
+
+Data Type: REAL (Floating-Point)
+Description:
+Stores an approximate value. Computationally faster but suffers from floating-point rounding errors.
+Example: 9.99999999 (instead of 10.00)
+Use Case:
+Use only for things where slight approximations are fine, like a user's location coordinates or a machine learning weight.
+
+Interview Tip:
+Never use REAL or FLOAT for financial data. Use DECIMAL / NUMERIC instead.
+Use REAL only for cases where slight approximations are acceptable, such as a user's location coordinates or a machine learning weight.
+
+
+3. Strings: CHAR, VARCHAR, TEXT
+
+These store character data (strings).
+
+Data Type: CHAR(n)
+Description:
+Fixed length. If you define CHAR(10) and insert "Hi" (2 letters), PostgreSQL pads it with 8 invisible spaces to make it 10 characters long.
+Example: 'Hi' (10 chars)
+Use Case / Notes:
+Rarely used unless storing fixed data like standard 2-letter country codes (US, IN).
+
+Data Type: VARCHAR(n)
+Description:
+Variable length with a limit. Uses only the space needed, but throws an error if you exceed the limit.
+Example: 'Hi'
+Use Case / Notes:
+Use when there is a specific character limit (e.g., username capped at 15 chars).
+
+Data Type: TEXT
+Description:
+Unlimited variable length.
+Example: 'This is a long text...'
+Use Case / Notes:
+In PostgreSQL, VARCHAR and TEXT have the exact same performance.
+Use TEXT by default unless there is a specific limit requirement.
+
+
+4. BOOLEAN
+
+Stores true/false logic.
+- Values can be TRUE, FALSE, or NULL (meaning "unknown" or "not set yet").
+- PostgreSQL is smart and will accept inputs like 't', 'true', 'y', 'yes', and 1 for TRUE.
+
+Input Value                         Stored as
+TRUE, true, 't', 'y', 'yes', 1     TRUE
+FALSE, false, 'f', 'n', 'no', 0    FALSE
+NULL                                NULL (unknown / not set yet)
+
+Example:
+
+CREATE TABLE users (
+    is_active BOOLEAN
+);
+
+INSERT INTO users (is_active) VALUES
+(true);  -- stored as TRUE
+(false); -- stored as FALSE
+(NULL);  -- stored as NULL
+
+
+5. Time Travel: DATE, TIME, TIMESTAMP, TIMESTAMPTZ
+
+These store date and/or time information.
+
+Data Type: DATE
+Description: Only the calendar date.
+Example: 2026-10-21
+
+Data Type: TIME
+Description: Only the clock time.
+Example: 22:10:00
+
+Data Type: TIMESTAMP
+Description: Date and Time combined, but without timezone context.
+Example: 2026-10-21 22:10:00
+
+Data Type: TIMESTAMPTZ
+Description:
+Date and Time with Time Zone.
+PostgreSQL automatically converts it to UTC for storage.
+Example: 2026-10-21 22:10:00+05
+
+Interview Tip:
+TIMESTAMPTZ (Timestamp with Time Zone) is the undisputed gold standard for logging events (e.g., Created_At, Updated_At). When you insert data, PostgreSQL automatically converts it to UTC (Coordinated Universal Time) for storage. When a user in Tokyo or New York requests that data, the backend can easily convert it from UTC to their local time. Using regular TIMESTAMP in a global app is a recipe for catastrophic scheduling bugs.
+
+
+6. UUID
+
+A Universally Unique Identifier (e.g., a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11).
+
+Example:
+
+CREATE TABLE users (
+    id UUID PRIMARY KEY,
+    name TEXT
+);
+
+INSERT INTO users (id, name) VALUES
+('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'sanjana');
+
+Interview Tip: Why use UUID over an auto-incrementing BIGINT ID?
+- Security: Users cannot guess other users' IDs in the URL.
+- Distributed Systems: If your company has 5 different database servers creating users at the same time, BIGINT IDs will clash (two servers might both try to create User #105). UUIDs are mathematically guaranteed to be unique, so any server can generate an ID without asking the central database first.
+
+
+7. Semi-Structured Data: JSON vs. JSONB
+
+PostgreSQL is famous for letting you store NoSQL-style JSON objects right inside a relational table.
+
+Data Type: JSON
+Description:
+Stores an exact text copy of the JSON you insert, including whitespace and duplicate keys. When you query it, PostgreSQL has to re-parse the text every single time, which is slow.
+Example:
+{
+    "name": "John",
+    "age": 25
+}
+
+Data Type: JSONB
+Description:
+Strips unnecessary whitespace and converts the JSON into a compiled binary format. You can attach database indexes to it, which makes querying fast.
+Example:
+'{"name": "John", "age": 25}'
+(stored in binary format)
+
+Interview Tip:
+Always use JSONB. It is faster and allows you to create indexes. This means you can search through millions of rows of JSONB data to find a specific key-value pair almost instantly.
+
+
+8. Arrays
+
+PostgreSQL allows you to store a list of values in a single column using [] syntax (e.g., INTEGER[] or TEXT[]).
+
+Example:
+
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    name TEXT,
+    skills TEXT[]
+);
+
+INSERT INTO users (name, skills) VALUES
+('sanjana', ARRAY['sde', 'backend', 'java']);
+
+This stores: ['sde', 'backend', 'java'] in the skills column.
+
+Interview Tip:
+While arrays are cool, interviewers will trap you here. Storing multiple values in one column violates 1st Normal Form (1NF) of database design. If you need to frequently query, join, or update individual items inside the array, you should not use an array. You should create a separate, normalized table (e.g., User_Skills table) instead. Arrays are only good for simple lists that you just read and write as a whole chunk.
