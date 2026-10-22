@@ -1,0 +1,84 @@
+ORDER BY, LIMIT and OFFSET in SQL (SDE Interview Notes)
+
+1. ORDER BY (Ascending and Descending)
+
+The ORDER BY clause physically sorts the final output.
+
+• ASC (Ascending): The default behavior. Sorts from lowest to highest, A to Z, or oldest to newest date. You don't actually have to write ASC, but it is good practice for readability.
+
+• DESC (Descending): Sorts from highest to lowest, Z to A, or newest to oldest date.
+
+SQL:
+
+-- Get the newest users first
+SELECT name, created_at
+FROM Users
+ORDER BY created_at DESC;
+
+
+2. Sorting by Multiple Columns
+
+You can chain multiple columns in your ORDER BY. The database sorts by the first column, and only if there is a tie, it looks at the second column to break that tie.
+
+SQL:
+
+SELECT name, department, salary
+FROM Employees
+ORDER BY department ASC, salary DESC;
+
+• How it works: It first groups everyone alphabetically by their department (Engineering, HR, Sales). Then, within the Engineering department, it sorts people from highest salary to lowest.
+
+
+3. Handling Ties (The SDE Edge Case)
+
+• The Problem: If you write ORDER BY salary DESC LIMIT 3, and five people make the exact same top salary, which three people does the database return? It is completely random. If you run the query twice, you might get different people.
+
+• The SDE Fix: To make your sorting deterministic (guaranteed to return the exact same result every time), always add a unique column (like the Primary Key) as the final tie-breaker.
+
+SQL:
+
+ORDER BY salary DESC, id ASC;
+
+
+4. LIMIT and OFFSET (Pagination Basics)
+
+When building a website, you cannot send 10,000 records to the frontend at once—it will crash the user's browser. You use LIMIT and OFFSET to implement Pagination (Page 1, Page 2, Page 3).
+
+• LIMIT x: Give me exactly x rows.
+
+• OFFSET y: Skip the first y rows before you start returning data.
+
+
+The Pagination Formula:
+
+If your website shows 10 items per page (LIMIT = 10):
+
+• Page 1: LIMIT 10 OFFSET 0    (Skips 0, gets 1-10)
+• Page 2: LIMIT 10 OFFSET 10   (Skips 1-10, gets 11-20)
+• Page 3: LIMIT 10 OFFSET 20   (Skips 1-20, gets 21-30)
+
+
+SQL:
+
+-- Query for Page 3
+SELECT name, salary
+FROM Employees
+ORDER BY salary DESC, id ASC
+LIMIT 10 OFFSET 20;
+
+
+The Interview Angle: "The Pagination Trap"
+
+Product companies like Amazon or Netflix will test you on how this scales.
+
+The Question: "Our app uses LIMIT 10 OFFSET 1000000 for deep pagination. Why is this crashing our database?"
+
+The SDE Answer:
+
+"Because OFFSET is highly inefficient at scale. To skip 1,000,000 rows, the database cannot just jump to row 1,000,001. It literally has to read, sort, and count all 1,000,000 rows, only to throw them away.
+
+For massive datasets, I would avoid OFFSET entirely and use Cursor-based (Keyset) Pagination. I would remember the ID of the last item on the previous page and filter using a WHERE clause instead:
+
+WHERE id > last_seen_id ORDER BY id ASC LIMIT 10.
+
+This allows the database to use an Index to instantly jump to the right spot."
