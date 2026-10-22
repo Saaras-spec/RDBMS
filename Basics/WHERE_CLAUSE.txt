@@ -1,0 +1,120 @@
+The WHERE Clause in SQL (SDE Interview Notes)
+
+The WHERE clause is the gatekeeper of your database. It evaluates every row against a condition, and if the condition is TRUE, the row gets through. If it evaluates to FALSE or NULL, the row is dropped.
+
+1. Comparison & Logical Operators
+
+These are your basic building blocks for filtering.
+
+Comparison Operators:
+
+=       (Equal)
+<       (Less than)
+>       (Greater than)
+<=      (Less than or equal to)
+>=      (Greater than or equal to)
+
+Not Equal:
+
+!=      (works in PostgreSQL)
+<>      (official SQL standard)
+
+SDE Tip:
+
+While both work in PostgreSQL, <> is the official SQL standard. Using <> shows interviewers you know the ANSI standard, not just dialect-specific syntax.
+
+Logical Operators:
+
+AND     (both must be true)
+OR      (at least one is true)
+NOT     (reverses the boolean)
+
+
+2. IN and NOT IN
+
+Used to check if a value matches any value in a list, replacing long, messy OR chains.
+
+-- Bad:
+WHERE role = 'SDE' OR role = 'Data Engineer'
+    OR role = 'Product Manager'
+
+-- Good:
+WHERE role IN ('SDE', 'Data Engineer',
+               'Product Manager');
+
+Interview Trap:
+
+Be incredibly careful with NOT IN if the list contains a NULL. If you write WHERE id NOT IN (1, 2, NULL), SQL evaluates this as id != 1 AND id != 2 AND id != NULL. Since nothing can ever equal or not equal NULL (explained below), the whole statement becomes "Unknown" and returns zero rows.
+
+
+3. BETWEEN
+
+Used for ranges. It is inclusive, meaning the start and end values are included in the result.
+
+WHERE salary BETWEEN 100000 AND 150000;
+
+-- Exact same as:
+WHERE salary >= 100000 AND salary <= 150000;
+
+
+4. Pattern Matching: LIKE, ILIKE, and Wildcards
+
+Used for searching partial strings.
+
+Wildcards:
+
+% represents zero, one, or multiple characters.
+_ represents exactly one character.
+
+Examples:
+
+WHERE name LIKE 'A%';       -- Starts with A: Alice, Adam
+WHERE name LIKE '%son';     -- Contains 'son': Jason, Sonny, Mason
+WHERE name LIKE '_a%';      -- The second letter must be 'a': Sam, Kartik
+
+LIKE: Case-sensitive. ('Sanjana' does not match LIKE 's%')
+
+ILIKE: Case-insensitive (PostgreSQL specific superpower).
+       ('Sanjana' DOES match ILIKE 's%')
+
+The System Design Question: "Why is LIKE '%smith' dangerous in production?"
+
+The SDE Answer:
+
+"If you put a wildcard % at the very beginning of a search pattern, the database cannot use its Indexes (like flipping to a specific letter in a dictionary). It is forced to do a Full Table Scan, reading every single row in the database, which will crash the system if the table has 50 million rows."
+
+
+5. IS NULL and IS NOT NULL
+
+NULL represents a completely missing or unknown value. It does not mean zero, and it does not mean an empty string.
+
+The Ultimate Beginner Trap:
+
+Never write WHERE phone = NULL or WHERE phone != NULL.
+
+The SDE Answer:
+
+"Because NULL means 'unknown', asking SQL if an unknown value equals another unknown value results in 'unknown'. You must explicitly use WHERE phone IS NULL or WHERE phone IS NOT NULL."
+
+
+6. Operator Precedence (The BODMAS of SQL)
+
+When you combine multiple AND, OR, and NOT conditions, SQL evaluates them in a strict order:
+
+1. NOT    is evaluated first.
+2. AND    is evaluated second.
+3. OR     is evaluated last.
+
+The Scenario:
+
+WHERE department = 'Engineering' OR department = 'Sales'
+    AND salary > 100000;
+
+Because AND runs first, this query means: "Give me everyone in Sales making over 100k, PLUS absolutely everyone in Engineering regardless of their salary."
+
+SDE Best Practice:
+
+Never rely on implicit precedence. Always use parentheses () to make your logic bulletproof and readable for the next engineer.
+
+-- Fix it with parentheses:
+WHERE (department = 'Engineering' OR department = 'Sales') AND salary > 100000;
