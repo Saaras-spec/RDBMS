@@ -1,0 +1,148 @@
+Date and Time Functions in SQL 
+
+Handling dates and times correctly is one of the hardest parts of backend engineering. A massive portion of system bugs (like users being billed twice or reports showing the wrong day's data) stems from mishandling database time logic.
+
+
+1. CURRENT_DATE and CURRENT_TIMESTAMP
+
+These functions capture the exact moment the query is executed.
+
+• CURRENT_DATE: Returns just the date (e.g., 2026-10-23).
+
+• CURRENT_TIMESTAMP: Returns the date, time, and timezone.
+In PostgreSQL, this is mathematically identical to the commonly used NOW() function.
+
+• The SDE Angle: Always use these as default values when creating tables so you don't have to rely on the backend server's clock, which might be out of sync.
+
+SQL:
+
+SELECT CURRENT_DATE;
+-- Returns 2026-10-23
+
+SELECT CURRENT_TIMESTAMP;
+-- Returns 2026-10-23 14:30:45.123+05:30
+
+SELECT NOW();
+-- Same as CURRENT_TIMESTAMP
+
+-- Example: Using as default value in a table
+CREATE TABLE Users (
+    id SERIAL PRIMARY KEY,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+
+2. EXTRACT()
+
+Pulls a specific numerical component (like the year, month, or hour) out of a timestamp.
+
+• Usage: EXTRACT(MONTH FROM '2026-10-23'::DATE) returns 10.
+
+• Common fields: YEAR, MONTH, DAY, HOUR, DOW (Day of the Week, where 0 is Sunday).
+
+• The SDE Angle: This is used heavily for analytical queries. If an interviewer asks you to find "total sales made on weekends", you use EXTRACT in your WHERE clause:
+
+WHERE EXTRACT(DOW FROM purchase_date) IN (0, 6).
+
+SQL:
+
+SELECT EXTRACT(YEAR FROM '2026-10-23'::DATE);
+-- Returns 2026
+
+SELECT EXTRACT(MONTH FROM '2026-10-23'::DATE);
+-- Returns 10
+
+SELECT EXTRACT(DAY FROM '2026-10-23'::DATE);
+-- Returns 23
+
+SELECT EXTRACT(HOUR FROM TIMESTAMP '2026-10-23 14:30:00');
+-- Returns 14
+
+SELECT EXTRACT(DOW FROM '2026-10-23'::DATE);
+-- Returns 5 (Friday)
+
+
+3. DATE_TRUNC() (The Reporting Superpower)
+
+While EXTRACT gives you an isolated number, DATE_TRUNC "truncates" or rounds down a timestamp to the very beginning of a specified unit (like the first day of the month, or the top of the hour), returning a full, valid timestamp.
+
+• Usage: DATE_TRUNC('month', TIMESTAMP '2026-10-23 14:30:00') returns 2026-10-01 00:00:00.
+
+Interview Trap: "What is the difference between EXTRACT(MONTH) and DATE_TRUNC('month')?"
+
+The SDE Answer:
+
+"If I have data spanning multiple years, EXTRACT(MONTH) groups every October from 2024, 2025, and 2026 into one massive '10' bucket. DATE_TRUNC('month') keeps them distinct (e.g., '2026-10-01'), which is critical for plotting time-series graphs like Monthly Active Users."
+
+SQL:
+
+SELECT DATE_TRUNC('month', TIMESTAMP '2026-10-23 14:30:00');
+-- Returns 2026-10-01 00:00:00
+
+SELECT DATE_TRUNC('day', TIMESTAMP '2026-10-23 14:30:00');
+-- Returns 2026-10-23 00:00:00
+
+SELECT DATE_TRUNC('hour', TIMESTAMP '2026-10-23 14:30:00');
+-- Returns 2026-10-23 14:00:00
+
+SELECT DATE_TRUNC('year', TIMESTAMP '2026-10-23 14:30:00');
+-- Returns 2026-01-01 00:00:00
+
+
+4. Date Arithmetic
+
+You can easily calculate future or past dates by adding or subtracting an INTERVAL.
+
+• Usage: CURRENT_DATE + INTERVAL '30 days'
+(Returns exactly 30 days from now).
+
+• Usage: CURRENT_TIMESTAMP - INTERVAL '1 year 2 months'.
+
+• The SDE Angle: This is how you handle subscription logic. If a user signs up for a free trial today, their expiration query is:
+
+INSERT INTO subscriptions (expires_at) VALUES (CURRENT_TIMESTAMP + INTERVAL '14 days').
+
+SQL:
+
+SELECT CURRENT_DATE + INTERVAL '30 days';
+-- Returns date 30 days from today
+
+SELECT CURRENT_TIMESTAMP - INTERVAL '1 year 2 months';
+-- Returns timestamp 1 year and 2 months ago
+
+-- Example: Free trial expiration
+INSERT INTO subscriptions (expires_at)
+VALUES (CURRENT_TIMESTAMP + INTERVAL '14 days');
+
+
+5. Calculating the Difference Between Dates
+
+How the database handles subtraction depends strictly on the data types you are subtracting.
+
+• Date - Date = Integer (Days):
+DATE '2026-10-25' - DATE '2026-10-23' returns the integer 2.
+
+• Timestamp - Timestamp = Interval:
+Subtracting precise timestamps returns a formatted interval (e.g., 2 days 04:30:00).
+
+• The PostgreSQL AGE() Function: A cleaner way to calculate differences. AGE(timestamp1, timestamp2) returns a human-readable interval representing the exact time between the two dates. If you only pass one argument, it calculates the difference between that date and midnight today.
+
+• Usage: AGE(TIMESTAMP '2003-12-30') returns an interval like 22 years 9 mons 24 days.
+
+SQL:
+
+-- Date - Date = Integer (Days)
+SELECT DATE '2026-10-25' - DATE '2026-10-23';
+-- Returns 2
+
+-- Timestamp - Timestamp = Interval
+SELECT TIMESTAMP '2026-10-25 18:30:00' -
+       TIMESTAMP '2026-10-23 14:00:00';
+-- Returns 2 days 04:30:00
+
+-- Using AGE()
+SELECT AGE(TIMESTAMP '2003-12-30');
+-- Returns 22 years 9 mons 24 days
+
+SELECT AGE(TIMESTAMP '2026-10-23', TIMESTAMP '2024-10-23');
+-- Returns 2 years 0 mons 0 days
