@@ -1,0 +1,109 @@
+DISTINCT and GROUP BY in SQL (SDE Interview Notes)
+
+The DISTINCT keyword acts as a filter that immediately removes duplicate rows from your final output. If you have 10,000 employees but only 4 departments, SELECT DISTINCT department FROM Employees; will return exactly 4 rows.
+
+
+1. DISTINCT Across Multiple Columns
+
+When you list multiple columns, SQL does not look at them individually; it evaluates the entire combination of those columns to determine uniqueness.
+
+SQL:
+
+SELECT DISTINCT department, job_title
+FROM Employees;
+
+If Alice is an 'SDE' in 'Engineering' and Bob is a 'Manager' in 'Engineering', both rows are returned. Even though the department is a duplicate, the combination ('Engineering' + 'SDE' vs. 'Engineering' + 'Manager') is entirely unique.
+
+
+2. DISTINCT ON (The PostgreSQL Superpower)
+
+This is a massive SDE interview topic. Product companies constantly ask the classic question: "How do you get the most recent row for each group?" (e.g., the latest order for each customer, or the most recent login for each user).
+
+Standard DISTINCT evaluates the whole row. DISTINCT ON (column) tells PostgreSQL: "Look for duplicates in this specific column, keep the very first row you find for each duplicate, and throw the rest away."
+
+SQL:
+
+SELECT DISTINCT ON (user_id)
+    user_id,
+    login_time,
+    ip_address
+FROM Logins
+ORDER BY user_id ASC, login_time DESC;
+
+Interview Trap:
+
+For DISTINCT ON to work, the column inside the parentheses (user_id) must be the very first column in your ORDER BY clause. You sort by the user first so their records are clustered together, then sort by the time descending so the newest row is at the top. DISTINCT ON simply grabs that top row.
+
+
+3. DISTINCT vs. GROUP BY
+
+Beginners often realize that SELECT DISTINCT department and SELECT department GROUP BY department produce the exact same visual output. So, what is the difference?
+
+• Use DISTINCT when you simply want to deduplicate a list to see what unique values exist.
+
+• Use GROUP BY when you want to perform math or Aggregate Functions (COUNT, SUM, AVG) on those groups.
+
+The Interview Angle:
+
+If an interviewer asks, "Is there a performance difference between DISTINCT and GROUP BY?"
+
+The SDE Answer:
+
+"In modern databases like PostgreSQL, the query optimizer translates a basic DISTINCT and a GROUP BY into the exact same execution plan (usually a HashAggregate), meaning the performance is completely identical. However, as an engineering best practice, I strictly use DISTINCT when I just want unique rows, and GROUP BY when I am doing aggregations. It makes the code's intent instantly readable for the next engineer."
+
+
+GROUP BY in SQL (SDE Interview Notes)
+
+GROUP BY is how you squash multiple rows into a single summary row based on a shared value. While DISTINCT just hides duplicates, GROUP BY gathers those duplicates into a bucket so you can perform mathematical calculations on them.
+
+
+1. Aggregate Functions (The Engine)
+
+To do the math on these buckets, you use aggregate functions:
+
+• COUNT(): Counts the number of rows.
+• SUM(): Adds numerical values together.
+• AVG(): Calculates the average.
+• MIN() / MAX(): Finds the lowest or highest value.
+
+
+2. Basic Example
+
+Imagine an Employees table. You want to know the total salary expense for each department.
+
+SQL:
+
+SELECT department, SUM(salary) AS total_expense
+FROM Employees
+GROUP BY department;
+
+Execution Logic: The database finds all rows where the department is 'Engineering', bundles them together into one row, and adds their salaries together to create the total_expense.
+
+
+3. Grouping by Multiple Columns
+
+You can create sub-buckets. If you want to know the average salary per role within each department:
+
+SQL:
+
+SELECT department, job_title, AVG(salary) AS avg_salary
+FROM Employees
+GROUP BY department, job_title;
+
+This outputs distinct rows like: Engineering | SDE | 120000
+and Engineering | Manager | 150000.
+
+
+The Interview Angle: "The SELECT Rule Trap"
+
+This is the most common syntax error beginners make in live coding interviews, and it causes an immediate query failure.
+
+The Mistake:
+
+SELECT department, name, SUM(salary)
+FROM Employees
+GROUP BY department;
+
+The SDE Explanation:
+
+"This query crashes. If you group the results by department, the database squashes all the 'Engineering' rows into a single row. But the SELECT clause also asks for name. If there are 50 engineers, the database does not know which of the 50 names to display on that single squashed row. The Golden Rule: Every standalone column in your SELECT statement MUST be explicitly listed in the GROUP BY clause."
