@@ -1,0 +1,144 @@
+CASE WHEN in SQL 
+
+CASE WHEN is the SQL equivalent of the if-else statements you write in Java or C++. It allows you to embed complex logical branching directly inside your queries, transforming or calculating data row-by-row before it ever reaches your backend.
+
+Product-based companies love testing CASE WHEN because it proves you can push heavy logic down to the database level, which is much faster than looping through data in your application code.
+
+
+1. The Basic Syntax and Categorization
+
+You use CASE to create new "virtual" columns based on existing data. The database evaluates the WHEN clauses from top to bottom. The moment it finds a true condition, it returns the THEN result and stops checking that row.
+
+Scenario: We want to bucket users into loyalty tiers based on their points.
+
+The SDE Angle: Notice the order. If you put points >= 1000 at the very top, a user with 15,000 points triggers that first condition, gets labeled 'Silver', and the database stops checking. Always order your conditions from most restrictive to least restrictive.
+
+SQL:
+
+SELECT
+    name,
+    points,
+    CASE
+        WHEN points >= 10000 THEN 'Platinum'
+        WHEN points >= 5000 THEN 'Gold'
+        WHEN points >= 1000 THEN 'Silver'
+        ELSE 'Bronze'
+    END AS loyalty_tier
+FROM Users;
+
+
+2. Handling Missing Values
+
+You can use CASE as a more robust version of COALESCE if you need complex logic to handle NULL or missing data.
+
+Interview Trap: Never write WHEN delivery_date = NULL. As we covered earlier, checking equality with NULL always fails. You must use IS NULL. If you forget the ELSE clause completely, SQL will implicitly return NULL for any row that doesn't match a WHEN condition. Always include an ELSE.
+
+SQL:
+
+SELECT
+    order_id,
+    CASE
+        WHEN delivery_date IS NULL THEN 'Processing'
+        WHEN delivery_date > CURRENT_DATE THEN 'In Transit'
+        ELSE 'Delivered'
+    END AS status
+FROM Orders;
+
+
+3. Conditional Calculations (The SDE Heavyweight)
+
+This is the single most frequently asked CASE WHEN pattern in interviews. You combine aggregate functions (SUM, COUNT) with CASE to perform "Pivot" operations or calculate specific metrics in a single pass.
+
+The Interview Question: "Write a single query to find the total number of approved transactions, the total number of declined transactions, and the overall approval rate."
+
+The SDE Answer: Instead of writing three separate queries, you put the CASE statement inside the SUM() function.
+
+How it works: For every row, if the status is 'approved', it spits out a 1. If not, a 0. The SUM() function simply adds up all the 1s, effectively counting only the approved rows.
+
+SQL:
+
+SELECT
+    -- 1. Count approvals
+    SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) AS total_approved,
+
+    -- 2. Count declines
+    SUM(CASE WHEN status = 'declined' THEN 1 ELSE 0 END) AS total_declined,
+
+    -- 3. Calculate approval rate (using NULLIF to prevent division by zero!)
+    SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) * 100.0 /
+    NULLIF(COUNT(*), 0) AS approval_percentage
+FROM Transactions;
+
+
+Aggregate Functions in SQL (SDE Interview Notes)
+
+
+1. The Core 5 Functions
+
+• MIN(column) and MAX(column): Finds the lowest and highest values.
+    ○ SDE Tip: These don't just work on numbers. You can use MAX(created_at) to find your newest user, or MIN(name) to find the first user alphabetically.
+
+• SUM(column): Adds all numeric values together (e.g., total revenue).
+
+• AVG(column): Calculates the mathematical average (mean).
+
+• COUNT(): Tallies up the number of rows.
+
+Examples:
+
+SELECT MIN(salary) FROM Employees;    -- Lowest salary
+SELECT MAX(created_at) FROM Users;    -- Newest user
+SELECT SUM(revenue) FROM Orders;      -- Total revenue
+SELECT AVG(salary) FROM Employees;   -- Average salary
+SELECT COUNT(*) FROM Users;           -- Total number of rows
+
+
+2. COUNT(*) vs. COUNT(column)
+
+This is one of the most common SQL screening questions for junior developers.
+
+• COUNT(*): Counts the physical rows in a table or group. It does not care what data is inside those rows. If the row exists, it gets counted.
+
+• COUNT(column_name): Looks at a specific column and counts only the rows where that column is NOT NULL.
+
+Scenario: You have a Users table with 100 people. 90 people provided a phone number, and 10 people left it blank (NULL).
+
+SQL:
+
+SELECT COUNT(*) FROM Users;
+-- returns 100 (Total users)
+
+SELECT COUNT(phone_number) FROM Users;
+-- returns 90 (Users with verifiable phones)
+
+
+3. How Aggregates Handle NULL
+
+The golden rule of SQL aggregates is: Every aggregate function (except COUNT(*)) completely ignores NULL values. It pretends they do not exist.
+
+The System Design Scenario:
+
+You are asked to find the average performance bonus for a team of 3 engineers.
+
+• Alice got $10,000.
+• Bob got $5,000.
+• Charlie just joined and hasn't received a bonus yet (NULL).
+
+The Bad Query:
+
+SELECT AVG(bonus) FROM Engineers;
+
+• What SQL does: It ignores Charlie completely. It adds Alice and Bob ($15,000) and divides by 2. It reports the team average is $7,500.
+
+• Why this fails an interview: From a business perspective, the company is spending $15,000 across 3 headcount. The true average cost per employee is $5,000.
+
+The SDE Fix:
+
+To calculate a true average where missing values should be treated as zero, you must use COALESCE inside the aggregate function.
+
+SQL:
+
+SELECT AVG(COALESCE(bonus, 0))
+FROM Engineers;
+
+• How it works: COALESCE intercepts Charlie's NULL and transforms it into a 0 before AVG() sees it. Now, AVG() adds $10,000 + $5,000 + $0, and correctly divides by 3.
