@@ -1,0 +1,136 @@
+GROUP BY and HAVING 
+
+The GROUP BY clause is how you collapse millions of raw rows into summarized analytical reports. It takes rows that share the exact same values in specified columns and squashes them into a single "bucket".
+
+The Golden Rule of Grouping
+
+If you use a GROUP BY clause, every single standalone column in your SELECT statement must be listed in your GROUP BY clause. The only exception is columns wrapped inside an Aggregate Function (like SUM() or COUNT()).
+
+If you try to SELECT name, department GROUP BY department, the database will instantly crash because it doesn't know which specific name to display for the entire department bucket.
+
+The Example Setup
+
+Imagine an Employees table at a global tech company with these columns: department, location, category (e.g., Full-Time vs Intern), and salary.
+
+
+1. Grouping by One Column
+
+You want to find the total headcount of each department.
+
+SQL:
+
+SELECT department,
+       COUNT(*) AS total_employees
+FROM Employees
+GROUP BY department;
+
+How it works:
+
+SQL finds all rows where the department is 'Engineering', creates one bucket, and counts the rows inside it. Then it does the same for 'Sales'.
+
+
+2. Grouping by Multiple Columns
+
+You want to see the total salary expense, but you need it broken down by department and the city they work in.
+
+SQL:
+
+SELECT department, location,
+       SUM(salary) AS total_expense
+FROM Employees
+GROUP BY department, location;
+
+How it works:
+
+SQL creates sub-buckets. It groups everyone in 'Engineering'. Within that bucket, it creates smaller buckets: 'Engineering - Delhi', 'Engineering - Bangalore', etc., and sums the salaries for each specific combination.
+
+
+3. Grouping by Department, Location, and Category
+
+You are asked to generate a hyper-specific financial report showing the average salary for every exact role type in every office.
+
+SQL:
+
+SELECT department, location,
+       category, AVG(salary) AS avg_pay
+FROM Employees
+GROUP BY department, location, category;
+
+How it works:
+
+The database looks for exact, three-way matches. If Alice is 'Engineering | Delhi | Full-Time' and Bob is 'Engineering | Delhi | Intern', they are placed in completely different buckets and averaged separately.
+
+
+The SDE Interview Trap: Grouping with NULLs
+
+An interviewer will ask: "If you have 5 employees whose location column is completely blank (NULL), what happens when you GROUP BY location?"
+
+The SDE Answer:
+
+"Unlike standard math operators that fail on NULLs, the GROUP BY clause treats all NULL values as being perfectly equal to each other. It will take those 5 employees and squash them all into a single, unified bucket where the location label is just NULL. If we want to exclude them, we must filter them out using a WHERE location IS NOT NULL clause before the GROUP BY happens."
+
+
+HAVING Clause in SQL (SDE Interview Notes)
+
+The HAVING clause exists for one specific reason: you cannot use Aggregate Functions (like SUM or COUNT) inside a WHERE clause. If you try to write WHERE COUNT(*) > 5, the database will throw a fatal syntax error. This is where HAVING steps in. It acts exactly like WHERE, but it filters the grouped buckets after they have been created, rather than filtering the individual rows beforehand.
+
+
+1. The Execution Order (The SDE Mental Model)
+
+To never fail a HAVING interview question, you must memorize the exact order the database executes your code. It does not read top-to-bottom.
+
+1. FROM: Grabs the table.
+
+2. WHERE: Filters out individual, raw rows.
+
+3. GROUP BY: Squashes the surviving rows into buckets.
+
+4. HAVING: Filters those buckets based on their aggregated math.
+
+5. SELECT: Chooses which columns to show the user.
+
+6. ORDER BY: Sorts the final output.
+
+
+2. The Ultimate Interview Question
+
+The Scenario: You work at an e-commerce company. An interviewer asks:
+
+"Find all customers who have spent more than $1,000 in total, but we only want to look at purchases made in the 'Electronics' category."
+
+The SDE Answer: You must combine both WHERE and HAVING in the exact same query.
+
+SQL:
+
+SELECT customer_id,
+       SUM(purchase_amount) AS total_spent
+FROM Orders
+WHERE category = 'Electronics'  -- Step 1: Filter raw rows
+GROUP BY customer_id            -- Step 2: Create customer buckets
+HAVING SUM(purchase_amount) > 1000; -- Step 3: Filter the buckets
+
+
+Why this proves you are ready for the job:
+
+1. The WHERE clause fires first. It immediately deletes any row that is Clothing, Books, or Groceries before any math happens. This saves massive amounts of database memory.
+
+2. The GROUP BY clause groups Alice's electronics purchases into one bucket, and Bob's into another.
+
+3. The HAVING clause runs the math. If Bob only spent $400 on electronics, his entire bucket is thrown away. Only customers over $1,000 make it to the final output.
+
+
+The Beginner Trap: Filtering un-aggregated columns in HAVING
+
+Sometimes, beginners write queries like this:
+
+SQL:
+
+-- BAD PRACTICE
+SELECT department, SUM(salary)
+FROM Employees
+GROUP BY department
+HAVING department = 'Engineering';
+
+While PostgreSQL might allow this to run, it is terrible for performance. Because HAVING runs after the GROUP BY, the database is forced to group every single department (Sales, HR, Marketing), calculate their total salaries, and then throw them all away just to leave 'Engineering'.
+
+The SDE Fix: If you are filtering by a normal, non-aggregated column (like department), you must use WHERE. It drops the unwanted data before the expensive grouping math even begins. Use HAVING exclusively for filtering aggregate math like SUM, COUNT, or AVG.
