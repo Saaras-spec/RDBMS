@@ -1,0 +1,136 @@
+Numeric Functions in SQL 
+
+Numeric functions handle mathematical operations and transformations directly inside the database, which is highly efficient for bulk data processing.
+
+
+1. ROUND()
+
+Rounds a decimal number to the nearest integer, or to a specified number of decimal places.
+
+• Usage (Standard): ROUND(10.4) returns 10.
+                  ROUND(10.5) rounds up to 11.
+
+• Usage (With Precision): ROUND(10.456, 2) rounds to two decimal places, returning 10.46.
+
+• The SDE Angle: In financial applications (like an e-commerce checkout), always handle currency rounding in the database before sending it to the frontend to prevent UI mismatch bugs. However, be aware of "Banker's Rounding" (rounding halves to the nearest even number) which some languages use. PostgreSQL's ROUND(numeric) rounds halfway values away from zero (standard math rounding).
+
+SQL:
+
+SELECT ROUND(10.4);
+-- Returns 10
+
+SELECT ROUND(10.5);
+-- Returns 11
+
+SELECT ROUND(10.456, 2);
+-- Returns 10.46
+
+
+2. ABS()
+
+Returns the Absolute value of a number, meaning it converts negative numbers to positive and leaves positive numbers alone.
+
+• Usage: ABS(-150) returns 150.
+
+• The SDE Angle: Used heavily for calculating differences or variances without caring which value is larger. For example, if you want to find transactions where the estimated price was off from the actual price by more than $10, regardless of whether it was too high or too low:
+WHERE ABS(estimated_price - actual_price) > 10.
+
+SQL:
+
+SELECT ABS(-150);
+-- Returns 150
+
+SELECT * FROM Transactions
+WHERE ABS(estimated_price - actual_price) > 10;
+
+
+3. CEIL() (or CEILING())
+
+Always rounds a decimal number UP to the very next integer, no matter how small the decimal is.
+
+• Usage: CEIL(10.1) returns 11. CEIL(10.0001) returns 11.
+
+• The SDE Angle: The classic interview use-case for CEIL() is Pagination math. If you have 53 items in your database and want to display 10 items per page, how many pages do you need? 53 / 10 = 5.3. You cannot have 5.3 pages. Using CEIL(53.0 / 10) correctly returns 6 total pages.
+
+SQL:
+
+SELECT CEIL(10.1);
+-- Returns 11
+
+SELECT CEIL(10.0001);
+-- Returns 11
+
+SELECT CEIL(53.0 / 10);
+-- Returns 6
+
+
+4. FLOOR()
+
+Always rounds a decimal number DOWN to the previous integer, chopping off the decimal entirely.
+
+• Usage: FLOOR(10.9) returns 10.
+
+• The SDE Angle: Used for "bucketing" or grouping continuous data into discrete ranges. For example, if you want to group users by their age decade (20s, 30s, 40s), you can divide their age by 10, floor it, and multiply back by 10. FLOOR(27 / 10) * 10 returns 20.
+
+SQL:
+
+SELECT FLOOR(10.9);
+-- Returns 10
+
+SELECT FLOOR(27 / 10) * 10;
+-- Returns 20
+
+
+Handling NULL Values in SQL (SDE Interview Notes)
+
+Null values represent missing or unknown data, and because any mathematical operation involving a NULL results in NULL, unhandled nulls will silently corrupt your application's data.
+
+
+5. COALESCE(): The Default Fallback
+
+COALESCE scans a comma-separated list of values from left to right and returns the very first value that is NOT NULL.
+
+• Usage: COALESCE(primary_phone, backup_phone, 'No Phone Provided')
+If primary_phone is missing, it checks backup_phone. If that is also missing, it gracefully defaults to the final fallback string.
+
+• The SDE Interview Trap (Math with Nulls): Imagine an Employees table where an engineer has a salary of $100,000, but their bonus is NULL (because they just joined). The interviewer asks you to query their total compensation. If you write SELECT salary + bonus, the database returns NULL (100,000 + Unknown = Unknown).
+
+• The SDE Fix: Always provide a safe mathematical default of zero.
+SELECT salary + COALESCE(bonus, 0) AS total_compensation;
+
+SQL:
+
+SELECT COALESCE(primary_phone, backup_phone,
+'No Phone Provided');
+-- If primary_phone is missing, it checks
+-- backup_phone. If that is also missing,
+-- it returns 'No Phone Provided'
+
+SELECT salary + COALESCE(bonus, 0)
+AS total_compensation;
+-- Returns total salary even if bonus is NULL
+
+
+6. NULLIF(): The Crash Preventer
+
+NULLIF takes exactly two arguments. It compares them, and if they are identical, it returns NULL. If they are different, it returns the first argument.
+
+• Usage: NULLIF(10, 10) returns NULL. NULLIF(10, 5) returns 10.
+
+• The SDE Interview Trap (Division by Zero): If you are building an analytics query to find average revenue per user (total_revenue / user_count), what happens on a new platform where the user_count is currently 0? The database throws a fatal "Division by Zero" error and completely crashes the backend request.
+
+• The SDE Fix: SELECT total_revenue / NULLIF(user_count, 0) AS avg_revenue;
+If the user_count drops to 0, NULLIF transforms that zero into a NULL. In SQL, dividing a number by NULL safely returns NULL instead of crashing the system.
+
+SQL:
+
+SELECT NULLIF(10, 10);
+-- Returns NULL
+
+SELECT NULLIF(10, 5);
+-- Returns 10
+
+SELECT total_revenue / NULLIF(user_count, 0)
+AS avg_revenue;
+-- If user_count is 0, this returns NULL
+-- instead of a division by zero error
