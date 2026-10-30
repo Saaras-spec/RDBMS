@@ -1,0 +1,126 @@
+String Functions in SQL
+
+String functions allow you to clean, format, and extract text data directly inside the database before sending it to the backend server.
+
+
+1. UPPER() and LOWER()
+
+Converts an entire string to uppercase or lowercase.
+
+• Usage: LOWER('Sanjana') returns 'sanjana'.
+
+• The SDE Angle: Always use LOWER() when verifying user logins. If a user registers with Email@example.com but tries to log in with email@example.com, standard = will reject them. You sanitize it by querying: WHERE LOWER(email) = LOWER('email@example.com').
+
+SQL:
+
+SELECT UPPER('Sanjana');
+-- Returns 'SANJANA'
+
+SELECT LOWER('Sanjana');
+-- Returns 'sanjana'
+
+
+2. LENGTH()
+
+Returns the number of characters in a string.
+
+• Usage: LENGTH('database') returns 8.
+
+• The SDE Angle: Used heavily for data validation queries. For example, finding broken records where a 10-digit phone number was entered incorrectly: WHERE LENGTH(phone_number) != 10.
+
+SQL:
+
+SELECT LENGTH('database');
+-- Returns 8
+
+SELECT * FROM Users
+WHERE LENGTH(phone_number) != 10;
+
+
+3. TRIM()
+
+Removes unwanted characters (usually spaces) from the very beginning and very end of a string. It does not remove spaces in the middle.
+
+• Usage: TRIM('   hello world   ') returns 'hello world'.
+
+• The SDE Angle: Users frequently copy-paste data (like emails or coupon codes) and accidentally include invisible trailing spaces. TRIM() prevents validation bugs during database inserts.
+
+SQL:
+
+SELECT TRIM('   hello world   ');
+-- Returns 'hello world'
+
+
+4. REPLACE()
+
+Finds a specific substring and replaces it with another string everywhere it occurs.
+
+• Usage: REPLACE('I like Java', 'Java', 'SQL') returns 'I like SQL'.
+
+• Parameters: REPLACE(source_string, text_to_find, replacement_text)
+
+SQL:
+
+SELECT REPLACE('I like Java', 'Java', 'SQL');
+-- Returns 'I like SQL'
+
+
+5. SUBSTRING()
+
+Extracts a specific chunk of a string based on a starting position and a length.
+
+• Usage: SUBSTRING('PostgreSQL', 1, 4) returns 'Post'.
+
+Interview Trap:
+
+Unlike arrays in JavaScript or C++ which start at index 0, SQL strings are 1-indexed. The first character is always position 1.
+
+SQL:
+
+SELECT SUBSTRING('PostgreSQL', 1, 4);
+-- Returns 'Post'
+
+
+6. CONCAT()
+
+Joins two or more strings together end-to-end.
+
+• Usage: CONCAT('Sanjana', ' ', 'Bisht') returns 'Sanjana Bisht'.
+
+The SDE Null Trap:
+
+In PostgreSQL, you can also join strings using the pipe operator || (e.g., 'Sanjana' || ' ' || 'Bisht'). Interviewers will ask for the difference.
+
+- If you use pipes with a null value: 'A' || NULL || 'B' results in the entire thing becoming NULL.
+
+- If you use the function: CONCAT('A', NULL, 'B') safely ignores the null and returns 'AB'. Always use CONCAT() to be safe.
+
+SQL:
+
+SELECT CONCAT('Sanjana', ' ', 'Bisht');
+-- Returns 'Sanjana Bisht'
+
+SELECT 'Sanjana' || ' ' || 'Bisht';
+-- Returns 'Sanjana Bisht'
+
+SELECT 'A' || NULL || 'B';
+-- Returns NULL
+
+SELECT CONCAT('A', NULL, 'B');
+-- Returns 'AB'
+
+
+7. SPLIT_PART() (PostgreSQL Specific)
+
+Splits a string based on a specific delimiter character and returns the nth chunk.
+
+• Usage: SPLIT_PART('sanjana@company.com', '@', 2) returns 'company.com'.
+
+• Parameters: SPLIT_PART(source_string, delimiter, chunk_number)
+
+• The SDE Angle: This is the absolute fastest way to solve common interview parsing questions, like extracting the domain name from a column of email addresses without writing complex regex.
+
+SQL:
+
+SELECT SPLIT_PART('sanjana@company.com', '@', 2);
+-- Returns 'company.com'
